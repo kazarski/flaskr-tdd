@@ -23,7 +23,7 @@ app.config.from_object(__name__)
 # init sqlalchemy
 db = SQLAlchemy(app)
 
-from project import models
+import models
 
 
 class Status(Enum):
