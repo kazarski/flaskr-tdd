@@ -1,7 +1,7 @@
 import json
 import pytest
 from pathlib import Path
-from project.app import app, init_db, Status
+from project.app import app, db, Status
 
 TEST_DB = 'test.db'
 
@@ -11,10 +11,11 @@ def client():
     BASE_DIR = Path(__file__).resolve().parent.parent
     app.config['TESTING'] = True
     app.config['DATABASE'] = BASE_DIR.joinpath(TEST_DB)
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{BASE_DIR.joinpath(TEST_DB)}'
 
-    init_db()  # setup
+    db.create_all()  # setup
     yield app.test_client()  # tests run here
-    init_db()
+    db.drop_all()
 
 
 def login(client, username, password):
