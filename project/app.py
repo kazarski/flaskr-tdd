@@ -4,7 +4,7 @@ from pathlib import Path
 from functools import wraps
 from typing import Union
 
-from flask import Flask, render_template, request, session, g, redirect, flash, url_for, jsonify, Response
+from flask import Flask, render_template, request, session, redirect, flash, url_for, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
 
 basedir = Path(__file__).resolve().parent.parent
