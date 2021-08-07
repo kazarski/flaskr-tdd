@@ -87,6 +87,13 @@ def test_messages(client):
 
 def test_delete_message(client):
     """Ensure the messages are being deleted"""
+    # Delete fails before login.
+    rv = client.get('/delete/1')
+    data = json.loads(rv.data)
+    assert data['status'] == Status.Failure.value
+
+    # Delete succeeds after login.
+    login(client, app.config['USERNAME'], app.config['PASSWORD'])
     rv = client.get('/delete/1')
     data = json.loads(rv.data)
     assert data['status'] == Status.Success.value

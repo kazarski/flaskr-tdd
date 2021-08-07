@@ -1,7 +1,9 @@
 from enum import Enum
 from pathlib import Path
+from functools import wraps
+from typing import Union
 
-from flask import (Flask, render_template, request, session, g, redirect, flash, url_for, abort, jsonify)
+from flask import Flask, render_template, request, session, g, redirect, flash, url_for, jsonify, Response
 from flask_sqlalchemy import SQLAlchemy
 
 basedir = Path(__file__).resolve().parent.parent
@@ -23,8 +25,8 @@ app.config.from_object(__name__)
 # init sqlalchemy
 db = SQLAlchemy(app)
 
-
 from project import models
+
 
 class Status(Enum):
     Failure = 0
@@ -38,20 +40,8 @@ def index():
     return render_template('index.html', entries=entries)
 
 
-@app.route('/add', methods=['POST'])
-def add_entry():
-    """Adds a new post to the database."""
-    if not session.get('logged_in'):
-        abort(401)
-    new_entry = models.Post(request.form['title'], request.form['text'])
-    db.session.add(new_entry)
-    db.session.commit()
-    flash('New entry was successfully posted')
-    return redirect(url_for('index'))
-
-
 @app.route('/login', methods=['GET', 'POST'])
-def login():
+def login() -> Union[Response, str]:
     """User login/authentication/session management."""
     error = None
     if request.method == 'POST':
@@ -67,15 +57,38 @@ def login():
 
 
 @app.route('/logout')
-def logout():
+def logout() -> Response:
     """User logout/authentication/session management"""
     session.pop('logged_in', None)
     flash('You were logged out')
     return redirect(url_for('index'))
 
 
+def login_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if not session.get('logged_in'):
+            flash('Please log in')
+            return jsonify({'status': Status.Failure.value, 'message': 'Please log in'}), 401
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+@app.route('/add', methods=['POST'])
+@login_required
+def add_entry() -> Response:
+    """Adds a new post to the database."""
+    new_entry = models.Post(request.form['title'], request.form['text'])
+    db.session.add(new_entry)
+    db.session.commit()
+    flash('New entry was successfully posted')
+    return redirect(url_for('index'))
+
+
 @app.route('/delete/<post_id>', methods=['GET'])
-def delete_entry(post_id):
+@login_required
+def delete_entry(post_id: int) -> Response:
     """Deletes a post from the database"""
     try:
         db.session.query(models.Post).filter_by(id=post_id).delete()
@@ -85,8 +98,9 @@ def delete_entry(post_id):
         result = {'status': Status.Failure.value, 'message': repr(e)}
     return jsonify(result)
 
+
 @app.route('/search', methods=['GET'])
-def search():
+def search() -> str:
     query = request.args.get('query')
     entries = db.session.query(models.Post)
     if query:
