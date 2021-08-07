@@ -23,8 +23,8 @@ app.config.from_object(__name__)
 # init sqlalchemy
 db = SQLAlchemy(app)
 
-import models
 
+from project import models
 
 class Status(Enum):
     Failure = 0
