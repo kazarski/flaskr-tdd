@@ -85,6 +85,14 @@ def delete_entry(post_id):
         result = {'status': Status.Failure.value, 'message': repr(e)}
     return jsonify(result)
 
+@app.route('/search/', methods=['GET'])
+def search():
+    query = request.args.get('query')
+    entries = db.session.query(models.Post)
+    if query:
+        return render_template('search.html', entries=entries, query=query)
+    return render_template('search.html')
+
 
 if __name__ == '__main__':
     app.run()

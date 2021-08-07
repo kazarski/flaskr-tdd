@@ -32,6 +32,22 @@ def logout(client):
     return client.get('/logout', follow_redirects=True)
 
 
+def search(client, query):
+    return client.get(
+        '/search',
+        data=dict(query=query),
+        follow_redirects=True
+    )
+
+
+def add_entry(client, title, text):
+    return client.post(
+        '/add',
+        data=dict(title=title, text=text),
+        follow_redirects=True,
+    )
+
+
 def test_index(client):
     response = client.get('/', content_type='html/text')
     assert response.status_code == 200
@@ -59,20 +75,32 @@ def test_login_logout(client):
     rv = login(client, app.config['USERNAME'], app.config['PASSWORD'] + 'x')
     assert b'Invalid password' in rv.data
 
+
 def test_messages(client):
     """Ensure that user can post messages"""
     login(client, app.config['USERNAME'], app.config['PASSWORD'])
-    rv = client.post(
-        '/add',
-        data=dict(title='<Hello>', text='<strong>HTML</strong> allowed here'),
-        follow_redirects=True,
-    )
+    rv = add_entry(client, '<Hello>', '<strong>HTML</strong> allowed here')
     assert b'No entries here so far' not in rv.data
     assert b'&lt;Hello&gt;' in rv.data
     assert b'<strong>HTML</strong> allowed here' in rv.data
+
 
 def test_delete_message(client):
     """Ensure the messages are being deleted"""
     rv = client.get('/delete/1')
     data = json.loads(rv.data)
     assert data['status'] == Status.Success.value
+
+
+def test_search(client):
+    """Ensure that the search returns the correct entries"""
+    test_titles = ['title1', 'title2', 'title3']
+    test_texts = ['text1', 'text2', 'text3']
+    for title, text in zip(test_titles, test_texts):
+        add_entry(client, title, text)
+
+    # Test empty query
+    rv = search(client, query='')
+    for title, text in zip(test_titles, test_texts):
+        assert title in rv.data and text in rv.data
+
