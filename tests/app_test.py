@@ -35,7 +35,7 @@ def logout(client):
 def search(client, query):
     return client.get(
         '/search',
-        data=dict(query=query),
+        query_string=dict(query=query),
         follow_redirects=True
     )
 
@@ -94,13 +94,37 @@ def test_delete_message(client):
 
 def test_search(client):
     """Ensure that the search returns the correct entries"""
+    login(client, app.config['USERNAME'], app.config['PASSWORD'])
+
     test_titles = ['title1', 'title2', 'title3']
     test_texts = ['text1', 'text2', 'text3']
+
+    # Init the db with some entries
     for title, text in zip(test_titles, test_texts):
         add_entry(client, title, text)
 
-    # Test empty query
-    rv = search(client, query='')
-    for title, text in zip(test_titles, test_texts):
-        assert title in rv.data and text in rv.data
+    def assert_successful_search(html_content, allowed_titles=None, allowed_texts=None):
+        allowed_texts = allowed_texts or []
+        allowed_titles = allowed_titles or []
 
+        for title, text in zip(test_titles, test_texts):
+            if title in allowed_titles or text in allowed_texts:
+                assert bytes(title, 'utf-8') in html_content and bytes(text, 'utf-8') in html_content
+            else:
+                assert bytes(title, 'utf-8') not in html_content and bytes(text, 'utf-8') not in html_content
+
+    # Test empty query
+    assert_successful_search(search(client, query='').data, allowed_titles=[], allowed_texts=[])
+
+    # Test that all title and text entries match
+    assert_successful_search(search(client, query='title').data, allowed_titles=test_titles, allowed_texts=test_texts)
+    assert_successful_search(search(client, query='text').data, allowed_titles=test_titles, allowed_texts=test_texts)
+
+    # Test exact text and title match
+    assert_successful_search(search(client, query=test_titles[0]).data, allowed_titles=test_titles[:1],
+                             allowed_texts=test_texts[:1])
+    assert_successful_search(search(client, query=test_texts[0]).data, allowed_titles=test_titles[:1],
+                             allowed_texts=test_texts[:1])
+
+    # Test subpattern match
+    assert_successful_search(search(client, query='3').data, allowed_titles=test_titles[-1:], allowed_texts=test_texts[-1:])
